@@ -3,18 +3,14 @@ import scala.util.control.NonFatal
 import util.Random
 
 class ControlFunction {
-  var Count = 30
+  var Count = 90
   var X = 1
   var Y = 0
   val rnd = new Random()
-  val range = 1 to 8
-  var RANDOM = 0
   var dir = ""
   var x = 0
   var y = 0
   var steps = 0
-  var trycount = 0
-
 
   def respond(input: String): String = try {
     tryrespond(input)
@@ -32,32 +28,21 @@ class ControlFunction {
     if (opcode == "React") {
       // token(0): 0th element of array
       val generation = paramMap("generation").toInt
+
+      //Master Node
       if (generation == 0) {
         val energy = paramMap("energy").toInt
         val collision = paramMap.getOrElse("collision", "")
+        val slaveCount = paramMap("slaves").toInt
         val viewString = paramMap.getOrElse("view", "")
         val view = View(viewString)
-        var viewdir = ""
-        if ((dir == "") || collision != "" || steps > Count) {
-          generateDirection()
-        } else {
-          //Check direction
-          viewdir = view.cellAtRelPos(XY(dir)).toString()
-          command = s"Status(text=$viewdir)" +: command
-          trycount = 0
-          while (viewdir != "_" && viewdir != "P" && viewdir != "B" && trycount < 10 ) {
-             trycount = trycount + 1
-             generateDirection()
-             viewdir = view.cellAtRelPos(XY(dir)).toString()
-          }
 
-
-        }
+        checkDirection(view)
 
         command = s"Move(direction=$dir)" +: command
         steps = steps + 1
 
-        if (energy >= 100) {
+        if (energy >= 100 && slaveCount <= 30) {
           val botDir = XY(dir).negate
           command = s"Spawn(direction=$botDir,energy=100,heading=$botDir)" +: command
         }
@@ -66,8 +51,12 @@ class ControlFunction {
         //Slave
         val master = paramMap("master")
         val heading = paramMap("heading")
+        val viewString = paramMap.getOrElse("view", "")
+        val view = View(viewString)
 
-        command = s"Move(direction=$heading)" +: command
+        checkDirection(view)
+
+        command = s"Move(direction=$dir)" +: command
       }
 
       command.mkString("|")
@@ -76,32 +65,32 @@ class ControlFunction {
     }
   }
 
-  def generateDirection() = {
-    RANDOM = range(rnd.nextInt(range length))
-    steps = 0
-    if (RANDOM == 1) {
-      x = 1; y = 1; dir = x.toString + ":" + y.toString
+  def checkDirection(view: View) = {
+    view.offsetToNearest('B').foreach (offset => dir = offset.signum.toString)
+    view.offsetToNearest('P').foreach (offset => dir = offset.signum.toString)
+
+    //Check direction
+    if (dir == "") { generateDirection(view) }
+    var viewdir = view.cellAtRelPos(XY(dir))
+
+    if (viewdir != '_' && viewdir != 'P' && viewdir != 'B') {
+      generateDirection(view)
     }
-    if (RANDOM == 2) {
-      x = 1; y = 0; dir = x.toString + ":" + y.toString
-    }
-    if (RANDOM == 3) {
-      x = 1; y = -1; dir = x.toString + ":" + y.toString
-    }
-    if (RANDOM == 4) {
-      x = 0; y = -1; dir = x.toString + ":" + y.toString
-    }
-    if (RANDOM == 5) {
-      x = 0; y = 1; dir = x.toString + ":" + y.toString
-    }
-    if (RANDOM == 6) {
-      x = -1; y = 1; dir = x.toString + ":" + y.toString
-    }
-    if (RANDOM == 7) {
-      x = -1; y = 0; dir = x.toString + ":" + y.toString
-    }
-    if (RANDOM == 8) {
-      x = -1; y = -1; dir = x.toString + ":" + y.toString
+  }
+
+  def generateDirection(view: View) = {
+    import XY._
+
+    var possibilities = List[XY](Right, RightUp, Up, UpLeft, Left, LeftDown, Down, DownRight)
+
+    val goodPossibilities = possibilities.filter(p=> view.cellAtRelPos(p)=='_' || view.cellAtRelPos(p)=='P' || view.cellAtRelPos(p)=='B')
+
+    if (goodPossibilities.isEmpty) {
+      val random = rnd.nextInt(possibilities.length)
+      dir = possibilities(random).toString
+    } else {
+      val random = rnd.nextInt(goodPossibilities.length)
+      dir = goodPossibilities(random).toString
     }
   }
 }

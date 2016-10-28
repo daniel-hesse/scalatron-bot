@@ -63,7 +63,7 @@ class ControlFunction {
 
         dir = checkDirection(dir, view, generation, slaveCount, timeRemaining)
 
-        if (slaveCount >= 10 && (view.cellAtRelPos(XY(dir)) == 'm' || view.cellAtRelPos(XY(dir)) == 's')) {
+        if (slaveCount >= 20 && (view.cellAtRelPos(XY(dir)) == 'm' || view.cellAtRelPos(XY(dir)) == 's')) {
           command = s"Explode(size=4)" +: command
         }
 
@@ -84,15 +84,21 @@ class ControlFunction {
       command.mkString("|")
     } else if (opcode == "Welcome") {
       roundTime = paramMap("apocalypse").toInt
-      if (paramMap("maxslaves").toInt != 0) { maxSlaves = paramMap("maxslaves").toInt }
+      maxSlaves = paramMap.getOrElse("maxslaves", s"$maxSlaves" ).toInt
       ""
     } else {
       ""
     }
   }
 
+
   def checkDirection(curdir: String, view: View, generation: Int, slaveCount: Int, timeRemaining: Int): String = {
     var dir = curdir
+    var poffsetsteps = 1000
+    var boffsetsteps = 1000
+    var poffsetdir = ""
+    var boffsetdir = ""
+
     // Fix for empty dir
     if (dir == "") { var dir = generateDirection(view) }
 
@@ -106,20 +112,47 @@ class ControlFunction {
         view.offsetToNearest('P').foreach(offset => dir = offset.signum.toString)
 
         var viewdir = view.cellAtRelPos(XY(dir))
+
         if (viewdir != '_' && viewdir != 'P' && viewdir != 'B' && viewdir != 'S') { dir = generateDirection(view) }
-      } else if (generation >= 1 && slaveCount < 20) {
-        view.offsetToNearest('B').foreach (offset => dir = offset.signum.toString)
-        view.offsetToNearest('P').foreach (offset => dir = offset.signum.toString)
+      } else if (generation >= 1 && slaveCount < 40) {
+          view.offsetToNearest('P').foreach (offset => {
+            poffsetsteps = offset.stepCount
+            poffsetdir=offset.signum.toString
+          })
+
+          view.offsetToNearest('B').foreach (offset => {
+            boffsetsteps = offset.stepCount
+            boffsetdir=offset.signum.toString
+          })
+
+          if (boffsetsteps < poffsetsteps  ) {
+              dir = boffsetdir
+            } else {
+              dir = poffsetdir
+            }
 
         var viewdir = view.cellAtRelPos(XY(dir))
         if (viewdir != '_' && viewdir != 'P' && viewdir != 'B') { dir = generateDirection(view) }
       } else {
-        view.offsetToNearest('m').foreach (offset => dir = offset.signum.toString)
-        view.offsetToNearest('B').foreach (offset => dir = offset.signum.toString)
-        view.offsetToNearest('P').foreach (offset => dir = offset.signum.toString)
-        view.offsetToNearest('s').foreach (offset => dir = offset.signum.toString)
-        var viewdir = view.cellAtRelPos(XY(dir))
-        if (viewdir != '_' && viewdir != 'P' && viewdir != 'B' && viewdir != 'm' && viewdir != 's') { dir = generateDirection(view) }
+          view.offsetToNearest('m').foreach (offset => dir = offset.signum.toString)
+          view.offsetToNearest('P').foreach (offset => {
+            poffsetsteps = offset.stepCount
+            poffsetdir=offset.signum.toString
+          })
+
+          view.offsetToNearest('B').foreach (offset => {
+            boffsetsteps = offset.stepCount
+            boffsetdir=offset.signum.toString
+          })
+
+          if (boffsetsteps < poffsetsteps  ) {
+            dir = boffsetdir
+          } else {
+            dir = poffsetdir
+          }
+          view.offsetToNearest('s').foreach (offset => dir = offset.signum.toString)
+          var viewdir = view.cellAtRelPos(XY(dir))
+          if (viewdir != '_' && viewdir != 'P' && viewdir != 'B' && viewdir != 'm' && viewdir != 's') { dir = generateDirection(view) }
       }
     } else {
       // If time is nearly over, move everything to master

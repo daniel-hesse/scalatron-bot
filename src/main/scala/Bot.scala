@@ -3,7 +3,7 @@ import util.Random
 
 class ControlFunction {
   val rnd = new Random()
-  val collectionModeStart = 4900
+  val collectionModeStart = 150
   var maxSlaves = 0
   var roundTime = 0
 
@@ -42,7 +42,7 @@ class ControlFunction {
         dir = checkDirection(dir, view, generation, slaveCount, timeRemaining, "0:0")
         command = s"Move(direction=$dir)" +: command
 
-        if (energy >= 100 && slaveCount <= 10 && timeRemaining >= 100) {
+        if (energy >= 100 && slaveCount <= 10 && timeRemaining >= collectionModeStart) {
           val botDir = XY(dir).negate
           command = s"Spawn(direction=$botDir,energy=100,heading=$botDir)" +: command
         }
@@ -71,7 +71,7 @@ class ControlFunction {
         }
 
         // If energy is enough, slaveCount below 100 and enough time, spawn new bots
-        if (energy >= 100 && slaveCount <= 300 && timeRemaining >= 100) {
+        if (energy >= 100 && slaveCount <= 300 && timeRemaining >= collectionModeStart) {
           val botDir = XY(dir).negate
           command = s"Spawn(direction=$botDir,energy=100,heading=$botDir)" +: command
         }

@@ -30,7 +30,10 @@ class ControlFunction {
       var dir = ""
       //Master Node
       if (generation == 0) {
-        dir = currentDir
+
+        // Enhancement "save current direction"
+        // dir = currentDir
+        dir = paramMap.getOrElse("currentdir", "0:0")
 
         // Debug output of view
         if (dir != "") {
@@ -46,12 +49,19 @@ class ControlFunction {
           val botDir = XY(dir).negate
           command = s"Spawn(direction=$botDir,energy=100,heading=$botDir)" +: command
         }
-        currentDir = dir
+
+        // Enhancement "save current direction"
+        command = s"Set(currentdir=$dir)" +: command
+        //currentDir = dir
       } else {
         //Slave
         var dir = paramMap("heading")
         var masterDir = paramMap("master")
         masterDir = XY(masterDir).signum.toString
+
+        // Enhancement "save current direction"
+        // dir = currentDir
+        dir = paramMap.getOrElse("currentdir", "0:0")
 
         // Enhance this:
         // - Should explode if enemy is two stepps away instead of one
@@ -78,6 +88,9 @@ class ControlFunction {
         }
 
         command = s"Move(direction=$dir)" +: command
+
+        // Enhancement "save current direction"
+        command = s"Set(currentdir=$dir)" +: command
       }
 
       // Send command to server
@@ -85,7 +98,12 @@ class ControlFunction {
     } else if (opcode == "Welcome") {
       roundTime = paramMap("apocalypse").toInt
       maxSlaves = paramMap.getOrElse("maxslaves", s"$maxSlaves" ).toInt
-      ""
+
+      command = s"Move(direction=1:1)" +: command
+      command = s"Spawn(direction=-1:-1,energy=100,heading=-1:-1)" +: command
+
+      // Send command to server
+      command.mkString("|")
     } else {
       ""
     }

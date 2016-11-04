@@ -3,6 +3,7 @@ import util.Random
 
 class ControlFunction {
   val rnd = new Random()
+  val collectionModeStart = 4900
   var maxSlaves = 0
   var roundTime = 0
 
@@ -38,7 +39,7 @@ class ControlFunction {
         }
 
         // Check current direction and make some decisions
-        dir = checkDirection(dir, view, generation, slaveCount, timeRemaining)
+        dir = checkDirection(dir, view, generation, slaveCount, timeRemaining, "0:0")
         command = s"Move(direction=$dir)" +: command
 
         if (energy >= 100 && slaveCount <= 10 && timeRemaining >= 100) {
@@ -63,7 +64,7 @@ class ControlFunction {
           command = s"Explode(size=4)" +: command
         }
 
-        dir = checkDirection(dir, view, generation, slaveCount, timeRemaining)
+        dir = checkDirection(dir, view, generation, slaveCount, timeRemaining, masterDir)
 
         if (slaveCount >= 20 && (view.cellAtRelPos(XY(dir)) == 'm' || view.cellAtRelPos(XY(dir)) == 's')) {
           command = s"Explode(size=4)" +: command
@@ -73,10 +74,6 @@ class ControlFunction {
         if (energy >= 100 && slaveCount <= 300 && timeRemaining >= 100) {
           val botDir = XY(dir).negate
           command = s"Spawn(direction=$botDir,energy=100,heading=$botDir)" +: command
-        }
-        if (timeRemaining <= 100) {
-          // Overwrite direction to masterDirection if time is near end
-          dir = masterDir
         }
 
         command = s"Move(direction=$dir)" +: command
@@ -102,7 +99,7 @@ class ControlFunction {
   }
 
 
-  def checkDirection(curdir: String, view: View, generation: Int, slaveCount: Int, timeRemaining: Int): String = {
+  def checkDirection(curdir: String, view: View, generation: Int, slaveCount: Int, timeRemaining: Int, masterDir: String): String = {
     var dir = curdir
     var poffsetsteps = 1000
     var boffsetsteps = 1000
@@ -112,7 +109,7 @@ class ControlFunction {
     // Fix for empty dir
     if (dir == "") { var dir = generateDirection(view) }
 
-    if (timeRemaining >= 100) {
+    if (timeRemaining >= collectionModeStart) {
       // Check direction
       // Master should just eat static plants
       // Gen1 slaves can eat plants and good beasts but should not die
@@ -176,12 +173,9 @@ class ControlFunction {
     } else {
       // If time is nearly over, move everything to master
       if (generation == 0) {
-        //view.offsetToNearest('S').foreach(offset => dir = offset.signum.toString)
+        view.offsetToNearest('S').foreach(offset => dir = offset.signum.toString)
       } else {
-        // Enhance this: dir will be overwritten in main function
-        view.offsetToNearest('B').foreach (offset => dir = offset.signum.toString)
-        view.offsetToNearest('P').foreach (offset => dir = offset.signum.toString)
-        view.offsetToNearest('M').foreach(offset => dir = offset.signum.toString)
+        dir = masterDir
       }
 
       //Check direction
@@ -190,13 +184,9 @@ class ControlFunction {
       // Check if something bad is in the new way
       // Masters and gen1 slaves likes only empty room, plants and good beasts
       // Slaves gen2+ like enemy master and slaves too
-      if ( viewdir != '_' && viewdir != 'P' && viewdir != 'B' && viewdir != 'M') {
+      if (viewdir != '_' && viewdir != 'P' && viewdir != 'B' && viewdir != 'S' && viewdir != 'M') {
         dir = generateDirection(view)
       }
-    }
-
-    if (dir == "" || dir == "0:0"){
-      dir = "1:1"
     }
 
     dir

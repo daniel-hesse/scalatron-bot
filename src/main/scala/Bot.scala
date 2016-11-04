@@ -3,9 +3,8 @@ import util.Random
 
 class ControlFunction {
   val rnd = new Random()
-  var maxSlaves = 300
+  var maxSlaves = 0
   var roundTime = 0
-  var currentDir = "0:0"
 
   def respond(input: String): String = try {
     tryrespond(input)
@@ -27,13 +26,10 @@ class ControlFunction {
       val slaveCount = paramMap("slaves").toInt
       val viewString = paramMap.getOrElse("view", "")
       val view = View(viewString)
-      var dir = ""
+      var dir = paramMap.getOrElse("currentdir", "1:1").toString
+
       //Master Node
       if (generation == 0) {
-
-        // Enhancement "save current direction"
-        // dir = currentDir
-        dir = paramMap.getOrElse("currentdir", "0:0")
 
         // Debug output of view
         if (dir != "") {
@@ -52,16 +48,12 @@ class ControlFunction {
 
         // Enhancement "save current direction"
         command = s"Set(currentdir=$dir)" +: command
-        //currentDir = dir
       } else {
         //Slave
-        var dir = paramMap("heading")
         var masterDir = paramMap("master")
+        var botName = paramMap("name")
         masterDir = XY(masterDir).signum.toString
 
-        // Enhancement "save current direction"
-        // dir = currentDir
-        dir = paramMap.getOrElse("currentdir", "0:0")
 
         // Enhance this:
         // - Should explode if enemy is two stepps away instead of one
@@ -97,11 +89,11 @@ class ControlFunction {
       command.mkString("|")
     } else if (opcode == "Welcome") {
       roundTime = paramMap("apocalypse").toInt
-      maxSlaves = paramMap.getOrElse("maxslaves", s"$maxSlaves" ).toInt
+      maxSlaves = paramMap.getOrElse("maxslaves", "300" ).toInt
 
       command = s"Move(direction=1:1)" +: command
       command = s"Spawn(direction=-1:-1,energy=100,heading=-1:-1)" +: command
-
+      command = s"Set(currentdir=1:1)" +: command
       // Send command to server
       command.mkString("|")
     } else {
@@ -143,11 +135,15 @@ class ControlFunction {
             boffsetdir=offset.signum.toString
           })
 
-          if (boffsetsteps < poffsetsteps  ) {
-              dir = boffsetdir
-            } else {
-              dir = poffsetdir
-            }
+        if (boffsetsteps < poffsetsteps) { // beast is next
+          dir = boffsetdir
+        } else if (boffsetsteps > poffsetsteps) { // plant is next
+          dir = poffsetdir
+        } else if (poffsetsteps != 1000 && boffsetsteps != 1000 && boffsetsteps == poffsetsteps) { // beast and plant next to us
+          dir = boffsetdir
+        } else { // nothing there
+          // dir stays the same
+        }
 
         var viewdir = view.cellAtRelPos(XY(dir))
         if (viewdir != '_' && viewdir != 'P' && viewdir != 'B') { dir = generateDirection(view) }
@@ -163,11 +159,16 @@ class ControlFunction {
             boffsetdir=offset.signum.toString
           })
 
-          if (boffsetsteps < poffsetsteps  ) {
-            dir = boffsetdir
-          } else {
-            dir = poffsetdir
-          }
+        if (boffsetsteps < poffsetsteps) { // beast is next
+          dir = boffsetdir
+        } else if (boffsetsteps > poffsetsteps) { // plant is next
+          dir = poffsetdir
+        } else if (poffsetsteps != 1000 && boffsetsteps != 1000 && boffsetsteps == poffsetsteps) { // beast and plant next to us
+          dir = boffsetdir
+        } else { // nothing there
+          // dir stays the same
+        }
+
           view.offsetToNearest('s').foreach (offset => dir = offset.signum.toString)
           var viewdir = view.cellAtRelPos(XY(dir))
           if (viewdir != '_' && viewdir != 'P' && viewdir != 'B' && viewdir != 'm' && viewdir != 's') { dir = generateDirection(view) }
@@ -193,6 +194,11 @@ class ControlFunction {
         dir = generateDirection(view)
       }
     }
+
+    if (dir == "" || dir == "0:0"){
+      dir = "1:1"
+    }
+
     dir
   }
 
